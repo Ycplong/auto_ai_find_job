@@ -1,5 +1,6 @@
 import time
 
+from pywinauto.findwindows import find_element
 from selenium import webdriver
 from selenium.common import NoSuchElementException, TimeoutException
 from selenium.webdriver import Keys
@@ -18,8 +19,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-# 全局 WebDriver 实例
-driver = None
+from main_find import logger
 
 
 def get_driver():
@@ -102,40 +102,128 @@ def log_in():
 def get_job_description():
     global driver
 
-    # 使用给定的 XPath 定位职位描述元素
-    xpath_locator_job_description = "//*[@id='wrap']/div[2]/div[2]/div/div/div[2]/div/div[2]/p"
+    try:
+        # 打印当前页面的 URL 和标题（调试用）
+        print(f"当前页面 URL: {driver.current_url}")
+        print(f"当前页面标题: {driver.title}")
 
-    # 确保元素已加载并且可以获取文本
-    job_description_element = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.XPATH, xpath_locator_job_description))
-    )
+        # 打印 1111 和 driver 状态
+        print(1111)
+        print(driver)
 
-    # 获取职位描述文本
-    job_description = job_description_element.text
-    print(job_description)  # 打印出职位描述，或者你可以在这里做其他处理
+        # 获取所有职位元素
+        index_job_tag = "//*[@id='positionList-hook']/div/div[1]/div"
 
-    # 返回职位描述文本，如果函数需要
-    return job_description
+        # 保存原始窗口句柄
+        original_window = driver.current_window_handle
+
+        # 记录已经处理过的职位元素
+        processed_elements = set()
+
+        # 逐步滚动加载所有职位
+        current_position = 0
+        scroll_step = 500  # 每次滚动 500 像素
+
+        while True:
+            # 获取当前可见的职位元素
+            current_job_elements = driver.find_elements(By.XPATH, index_job_tag)
+            print(f"当前页面job数量{len(current_job_elements)}")
+            # 处理当前加载的职位元素
+            for index,element in enumerate(current_job_elements):
+                if element not in processed_elements:  # 避免重复处理
+                    try:
+                        # 点击职位元素
+                        # element.click()
+                        href_tag = f"//*[@id='positionList-hook']/div/div[1]/div[{index+1}]/div[1]/div[1]/div[1]/a"
+                        href_tag_element = WebDriverWait(driver, 2).until(
+                            EC.presence_of_element_located((By.XPATH, href_tag))
+                        )
+                        href_tag_element.click()
+                        print(f"处理职位: {element.text}")
+                        time.sleep(1)
+                        # 获取所有窗口句柄
+                        all_windows = driver.window_handles
+
+                        # 切换到新页面
+                        driver.switch_to.window(all_windows[-1])
+                        print(f"切换到新页面，当前页面标题: {driver.title}")
+
+                        # 在这里可以添加其他操作，例如提取职位描述
+                        # 例如：
+                        # job_description_xpath = "//*[@id='wrap']/div[2]/div[2]/div/div/div[2]/div/div[2]/p"
+                        # job_description_element = WebDriverWait(driver, 10).until(
+                        #     EC.presence_of_element_located((By.XPATH, job_description_xpath)))
+                        # job_description = job_description_element.text
+                        # print(f"职位描述: {job_description}")
+
+                        # 关闭新页面
+                        driver.close()
+
+                        # 切换回原始页面
+                        driver.switch_to.window(original_window)
+                        print("切换回原始页面")
+
+                        # 标记为已处理
+                        processed_elements.add(element)
+
+                    except Exception as e:
+                        print(f"处理职位时发生错误: {e}")
+                        # 如果发生错误，关闭新页面并切换回原始页面
+                        if len(driver.window_handles) > 1:
+                            driver.close()
+                            driver.switch_to.window(original_window)
+            # 滚动一小段距离
+            current_position += scroll_step
+            driver.execute_script(f"window.scrollTo(0, {current_position});")
+            print(f"滚动到位置: {current_position}")
+            # 打印找到的职位数量
+            print(f"当前找到 {len(processed_elements)} 个职位")
+            # 等待新内容加载
+            time.sleep(1)  # 根据实际情况调整等待时间
 
 
 
-def select_dropdown_option(driver, label,city):
+            # 计算新的页面高度
+            new_scroll_height = driver.execute_script("return document.body.scrollHeight")
+            if current_position >= new_scroll_height:
+                print("已滚动到底部")
+                break
+
+
+
+    except Exception as e:
+        print(f"发生未知错误: {e}")
+
+
+
+def select_dropdown_option( label,city):
+    global driver
     # 尝试在具有特定类的元素中找到文本
-    trigger_elements = driver.find_elements(By.XPATH, "//*[@id='root']/div[3]/div[2]/div[3]/div[1]/div[2]/div[1]/img")
+    #trigger_elements = driver.find_elements(By.XPATH, "//*[@id='root']/div[3]/div[2]/div[3]/div[1]/div[2]/div[1]/img")
     city_tag = "//*[@id='rightNav_top']/div/div[1]/div/div[1]/div/a"
     # 确保city元素已加载并且可以获取文本
     try:
-        city_element = WebDriverWait(driver, 10).until(
+        city_element = WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, city_tag))
         )
         city_element.click()
+        print(f"搜索到切换城市按钮")
+        # 获取所有窗口句柄
+        all_windows = driver.window_handles
+        # 切换到第二个页面
+        driver.switch_to.window(all_windows[-1])
         try:
-            sel_city_tag = "//*[@id='root']/div[2]/div[2]/div/div[1]/div[2]/div/input"
-            sel_city_element = WebDriverWait(driver, 10).until(
+            # //*[@id="root"]/div[2]/div[2]/div/div[1]/div[2]/div/input
+            driver.save_screenshot("screenshot.png")
+            sel_city_tag = "//input[@class='city-search__box__text--field']"
+            sel_city_css_se = "#root > div.city-center > div.city-center__nav > div > div.city-search.clearfix > div.city-search__box > div > input"
+            sel_city_element = WebDriverWait(driver, 13).until(
                 EC.presence_of_element_located((By.XPATH, sel_city_tag))
             )
+            print("找到城市输入框")
             sel_city_element.send_keys(city)
             sel_city_element.send_keys(Keys.ENTER)
+            print(f"键入城市到{city}")
         except TimeoutException:
             print("键入城市超时")
         except NoSuchElementException:
@@ -144,23 +232,33 @@ def select_dropdown_option(driver, label,city):
         print("搜索切换城市超时")
     except NoSuchElementException:
         print("未知错误")
+    # 获取所有窗口句柄
+    all_windows = driver.window_handles
+
+    # 切换到第3个页面
+    driver.switch_to.window(all_windows[-1])
+
+    # //*[@id="root"]/div[1]/div/div[2]/div/div/div[2]/div/div/input
     job_text = "//*[@id='root']/div[1]/div/div[2]/div/div/div[2]/div/div/input"
     try:
         job_element = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, job_text)))
         job_element.send_keys(label)
         job_element.send_keys(Keys.ENTER)
     except TimeoutException:
-        print("搜索切换城市超时/键入职位超时")
+        print("搜索键入职位超时")
     except NoSuchElementException:
         print("未知错误")
-    # 标记是否找到元素
-    found = True
 
 
-    if found:
-        # 取消注释，提供选择更多tag的时间
-        # time.sleep(20)
-        return
+    # 获取所有窗口句柄
+    all_windows = driver.window_handles
+
+    # 切换到第3个页面
+    driver.switch_to.window(all_windows[-1])
+    print(f"当前页面 1URL: {driver.current_url}")
+    driver.save_screenshot("screenshot1.png")
+    print(f'到达对应城市{city}找{label}')
+
 
 
 
@@ -170,4 +268,18 @@ browser_type = "chrome"
 chrome_driver_path = 'chromedriver.exe'
 edge_driver_path = ''
 google_path = r'C:\Users\Administrator\AppData\Local\Google\Chrome\Bin\chrome.exe'
+# 全局 WebDriver 实例
+driver = None
 open_browser_with_options(url,browser_type)
+log_in()
+label = 'python开发'
+city = '深圳'
+select_dropdown_option(label,city)
+# 调用 get_job_description()
+try:
+    print("页面已加载完成，开始获取第一个页面的所有职位描述")
+    get_job_description()
+except TimeoutException:
+    print("页面加载超时，无法获取职位描述")
+except Exception as e:
+    print(f"发生未知错误: {e}")
