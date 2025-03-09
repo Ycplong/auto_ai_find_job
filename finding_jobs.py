@@ -1,13 +1,4 @@
-import time
-
-from selenium import webdriver
 from selenium.common import NoSuchElementException, TimeoutException
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service
-
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.edge.service import Service as EdgeService
@@ -178,10 +169,14 @@ def get_job_description_by_index(index):
         return None
 
 
-# Variables
-url = "https://www.zhipin.com/web/geek/job-recommend?ka=header-job-recommend"
-browser_type = "chrome"
-chrome_driver_path = 'chromedriver.exe'
-edge_driver_path = ''
-google_path = r'C:\Users\Administrator\AppData\Local\Google\Chrome\Bin\chrome.exe'
-open_browser_with_options(url,browser_type)
+if __name__ =="__main__":
+    # Variables
+    url = "https://www.zhipin.com/web/geek/job-recommend?ka=header-job-recommend"
+    browser_type = "chrome"
+    chrome_driver_path = 'chromedriver.exe'
+    edge_driver_path = ''
+    google_path = r'C:\Users\Administrator\AppData\Local\Google\Chrome\Bin\chrome.exe'
+    open_browser_with_options(url, browser_type)
+    # 关闭浏览器
+    if driver:
+        driver.quit()

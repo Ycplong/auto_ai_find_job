@@ -1,22 +1,23 @@
-import logging
-
-from dotenv import load_dotenv
+from openai import OpenAI, OpenAIError
 from selenium.common import TimeoutException, NoSuchElementException
 from sentence_transformers import SentenceTransformer
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.vectorstores import FAISS
-
-import json
-import os
-import time
-from selenium.webdriver.support import expected_conditions as EC
-import requests
-
-import openai
-from openai import OpenAI, OpenAIError
 from selenium.webdriver import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+
+import os
+import time
+import logging
+from dotenv import load_dotenv
+
+
+from langchain.vectorstores import FAISS
+from langchain.text_splitter import CharacterTextSplitter
+
+
+
 
 
 
@@ -219,7 +220,8 @@ def chat(user_input, assistant_id=None, thread_id=None):
     #     error_response = json.dumps({"error": str(e)})
     #
 
-def send_job_descriptions_to_chat(url, browser_type, label, assistant_id=None, vectorstore=None,platform='boss'):
+def send_job_descriptions_to_chat(url, browser_type, label, assistant_id=None, vectorstore=None,platform='boss',city=None):
+
     # 开始浏览并获取工作描述
     if platform == 'boss':
         import finding_jobs
@@ -302,78 +304,19 @@ def send_job_descriptions_to_chat(url, browser_type, label, assistant_id=None, v
         import finding_jobs_zl
         finding_jobs_zl.open_browser_with_options(url, browser_type)
         finding_jobs_zl.log_in()
-        job_index = 1  # 开始的索引
-        index_c = 1
-        while True:
-            try:
-                # 获取 driver 实例
-                driver = finding_jobs_zl.get_driver()
-                # 更改下拉列表选项
-                finding_jobs_zl.select_dropdown_option(driver, label)
-                # 调用 finding_jobs.py 中的函数来获取描述
-                job_description = finding_jobs_zl.get_job_description_by_index(job_index)
-                if job_description:
-                    # 立即沟通
-                    element = driver.find_element(By.CSS_SELECTOR, '.op-btn.op-btn-chat').text
-                    logger.info(element)
-
-                    time.sleep(15)
-                    if element == '立即沟通':
-                        # 发送描述到聊天并打印响应
-                        if should_use_langchain():
-                            response = '你好'
-                        if not should_use_local_langchain():
-                            response = generate_letter(vectorstore, job_description)
-                        else:
-                            response = chat_local(vectorstore, job_description)
-                        logger.info(f"返回的求职信息{response}")
-                        time.sleep(1)
-                        # 点击沟通按钮
-
-                        contact_button = driver.find_element(By.XPATH,
-                                                             "//*[@id='wrap']/div[2]/div[2]/div/div/div[2]/div/div[1]/div[2]/a[2]")
-
-                        contact_button.click()
-                        logger.info(f'点击沟通成功 职位需求为：{job_description}')
-                        # 聊过得消息跳过 XPath
-                        xpath_locator_wechat_history = "/html/body/div[8]/div[2]/div[3]/a[2]"
-                        xpath_locator_wechat_continue = "/html/body/div[8]/div[2]/div[3]/a[1]"
-                        try:
-                            # 等待继续沟通出现，最多等待 10 秒
-                            WebDriverWait(driver, 15).until(
-                                EC.presence_of_element_located((By.XPATH, xpath_locator_wechat_history))
-                            )
-                            logger.info("已经发送默认消息/匹配到继续沟通按钮")
-
-                            wechat_button = driver.find_element(By.XPATH, xpath_locator_wechat_history)
-                            wechat_button.click()
-                            logger.info('点击继续沟通success')
-
-                        except TimeoutException:
-                            logger.info("超时未找到")
-                        except NoSuchElementException:
-                            logger.info("异常错误")
-
-                        # 等待回复框出现
-                        xpath_locator_chat_box = "//*[@id='chat-input']"
-                        chat_box = WebDriverWait(driver, 50).until(
-                            EC.presence_of_element_located((By.XPATH, xpath_locator_chat_box))
-                        )
-                        #     # 调用函数发送响应
-                        send_response_and_go_back(driver, response)
-                    else:
-                        # 直接投递
-                        pass
-
-                # 等待一定时间后处理下一个工作描述
-                time.sleep(3)
-                # job_index += 1
-                index_c += 1
-                logger.info(f"已沟通简历{index_c}份")
-            except Exception as e:
-                logger.info(f"An error occurred: {e}")
-                break
+        try:
+            # 获取 driver 实例
+            driver = finding_jobs_zl.get_driver()
+            # 更改下拉列表选项
+            finding_jobs_zl.select_dropdown_option(driver,label,city)
+            # 调用 finding_jobs.py 中的函数来投递
+            finding_jobs_zl.one_click_delivery()
+        except Exception as e:
+            logger.info(f"An error occurred: {e}")
+            pass
     elif platform == 'wy':
+        pass
+    else:
         pass
 
 

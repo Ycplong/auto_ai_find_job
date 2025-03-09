@@ -1,13 +1,13 @@
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.vectorstores import FAISS
-from langchain.chains import RetrievalQA
-from langchain.chat_models import ChatOpenAI
-from langchain.prompts import PromptTemplate
-from dotenv import load_dotenv
-from sentence_transformers import SentenceTransformer
 import os
-from config import client  # 从配置文件导入 client
 import requests
+from dotenv import load_dotenv
+
+from sentence_transformers import SentenceTransformer
+
+
+from langchain.text_splitter import CharacterTextSplitter
+from config import client  # 从配置文件导入 client
+from langchain.vectorstores import FAISS
 
 load_dotenv()
 

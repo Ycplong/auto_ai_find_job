@@ -1,15 +1,8 @@
 import time
 
-from pywinauto.findwindows import find_element
-from selenium import webdriver
+
 from selenium.common import NoSuchElementException, TimeoutException
 from selenium.webdriver import Keys
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service
-
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.edge.service import Service as EdgeService
@@ -19,7 +12,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from main_find import logger
+
 
 
 def get_driver():
@@ -195,9 +188,78 @@ def get_job_description():
         print(f"发生未知错误: {e}")
 
 
-
-def select_dropdown_option( label,city):
+def one_click_delivery():
     global driver
+    while True:
+        try:
+            # 打印当前页面的 URL 和标题（调试用）
+            print(f"当前页面 URL: {driver.current_url}")
+            print(f"当前页面标题: {driver.title}")
+
+            # 打印调试信息
+            print(1111)
+            print(driver)
+
+            # 获取所有职位元素
+            index_job_tag = "//*[@id='positionList-hook']/div/div[1]/div"
+            # 获取当前可见的职位元素
+            current_job_elements = driver.find_elements(By.XPATH, index_job_tag)
+            print(f"当前页面job数量: {len(current_job_elements)}")
+
+            # 使用 JavaScript 滚动到页面底部
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            # 等待页面加载（如果需要）
+            time.sleep(2)  # 根据实际情况调整等待时间
+
+            # 获取全选按钮并点击
+            all_select = "//*[@id='positionList-hook']/div/div[2]/div[1]/div/div[1]/i"
+            all_select_element = WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.XPATH, all_select)))
+            all_select_element.click()
+
+            # 获取全部投递按钮并点击
+            all_delivery = "//*[@id='positionList-hook']/div/div[2]/div[1]/div/div[2]/button"
+            all_delivery_element = WebDriverWait(driver, 15).until(
+                EC.presence_of_element_located((By.XPATH, all_delivery))
+            )
+            all_delivery_element.click()
+            print(f"全部投递 {all_delivery_element.text[-2:]} 个职位")
+
+            # 处理可能出现的弹窗
+            try:
+                may_close = "//*[@id='root']/div[3]/div[3]/div/img[2]"
+                may_close_element = WebDriverWait(driver, 15).until(
+                    EC.presence_of_element_located((By.XPATH, may_close)))
+                may_close_element.click()
+            except (NoSuchElementException, TimeoutException):
+                print("本次未出现关闭页面")
+
+            # 切换到新窗口并关闭
+            all_windows = driver.window_handles
+            original_window = driver.current_window_handle
+            driver.switch_to.window(all_windows[-1])
+            driver.close()
+            driver.switch_to.window(original_window)
+
+            # 获取下一页按钮
+            next_page = "//*[@id='positionList-hook']/div/div[2]/div[2]/div/a[7]"
+            try:
+                next_page_element = WebDriverWait(driver, 15).until(
+                    EC.presence_of_element_located((By.XPATH, next_page))
+                )
+                next_page_element.click()
+            except (NoSuchElementException, TimeoutException):
+                print("没有下一页了，退出循环")
+                break  # 如果没有下一页，退出循环
+
+        except Exception as e:
+            print(f"发生异常: {e}")
+            break  # 如果发生异常，退出循环
+
+
+
+
+def select_dropdown_option( driver,label,city):
     # 尝试在具有特定类的元素中找到文本
     #trigger_elements = driver.find_elements(By.XPATH, "//*[@id='root']/div[3]/div[2]/div[3]/div[1]/div[2]/div[1]/img")
     city_tag = "//*[@id='rightNav_top']/div/div[1]/div/div[1]/div/a"
@@ -261,25 +323,28 @@ def select_dropdown_option( label,city):
 
 
 
-
-# Variables
-url = "https://www.zhaopin.com/"
-browser_type = "chrome"
-chrome_driver_path = 'chromedriver.exe'
-edge_driver_path = ''
-google_path = r'C:\Users\Administrator\AppData\Local\Google\Chrome\Bin\chrome.exe'
-# 全局 WebDriver 实例
-driver = None
-open_browser_with_options(url,browser_type)
-log_in()
-label = 'python开发'
-city = '深圳'
-select_dropdown_option(label,city)
-# 调用 get_job_description()
-try:
-    print("页面已加载完成，开始获取第一个页面的所有职位描述")
-    get_job_description()
-except TimeoutException:
-    print("页面加载超时，无法获取职位描述")
-except Exception as e:
-    print(f"发生未知错误: {e}")
+if __name__ == '__main__':
+    # Variables
+    url = "https://www.zhaopin.com/"
+    browser_type = "chrome"
+    chrome_driver_path = 'chromedriver.exe'
+    edge_driver_path = ''
+    google_path = r'C:\Users\Administrator\AppData\Local\Google\Chrome\Bin\chrome.exe'
+    # 全局 WebDriver 实例
+    driver = None
+    open_browser_with_options(url,browser_type)
+    log_in()
+    label = 'python开发'
+    city = '深圳'
+    select_dropdown_option(driver,label,city)
+    # 调用 get_job_description()
+    try:
+        print("页面已加载完成，开始获取第一个页面的所有职位描述")
+        one_click_delivery()
+    except TimeoutException:
+        print("页面加载超时，无法获取职位描述")
+    except Exception as e:
+        print(f"发生未知错误: {e}")
+    # 关闭浏览器
+    if driver:
+        driver.quit()
