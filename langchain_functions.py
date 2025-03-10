@@ -1,6 +1,12 @@
+import json
 import os
+from telnetlib import EC
+
 import requests
 from dotenv import load_dotenv
+from selenium.common import TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
 
 from sentence_transformers import SentenceTransformer
 
@@ -172,4 +178,54 @@ def chat_local(resume_text,job_description):
         print(f"生成求职信时发生错误: {e}")
         return "你好"
 
+def get_cookie_filename(driver,platform):
+    """根据platform生成的 Cookie 文件名"""
+    return f"{platform}_cookies.json"
+
+def save_cookies(driver,platform):
+    """保存 Cookies 到文件"""
+    file_path = get_cookie_filename(driver,platform)
+    cookies = driver.get_cookies()
+    with open(file_path, "w") as file:
+        json.dump(cookies, file)
+    print(f"Cookies 已保存到 {file_path}")
+
+def load_cookies(driver,platform):
+    """从文件加载 Cookies"""
+    file_path = get_cookie_filename(driver,platform)
+    if not os.path.exists(file_path):
+        print("没有找到 Cookies 文件，需重新登录")
+        return False
+    try:
+        with open(file_path, "r") as file:
+            cookies = json.load(file)
+            for cookie in cookies:
+                driver.add_cookie(cookie)
+        print(f"Cookies 已加载自 {file_path}")
+        return True
+    except Exception as e:
+        print(f"加载 Cookies 失败: {e}")
+        return False
+
+def is_logged_in(driver, platform):
+    """检查是否已登录"""
+    # 根据不同平台设置登录检查的 XPath
+    login_check_xpaths = {
+        "boss": "//*[@id='header']/div[1]/div[4]/div/a",  # BOSS 平台
+        "zl": "//*[@id='right_nav_header']/div/div[2]/a[2]"  # 智联招聘平台
+    }
+
+    if platform not in login_check_xpaths:
+        print(f"未知平台: {platform}")
+        return False
+
+    try:
+        WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((By.XPATH, login_check_xpaths[platform]))
+        )
+        print(f"{platform}：检测到未登录，需要扫码")
+        return False  # 发现登录按钮，说明未登录
+    except TimeoutException:
+        print(f"{platform}：未发现登录按钮，已登录")
+        return True  # 未发现登录按钮，说明已登录
 

@@ -8,6 +8,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+from langchain_functions import load_cookies, save_cookies, is_logged_in
+
 # 全局 WebDriver 实例
 driver = None
 
@@ -53,44 +55,44 @@ def open_browser_with_options(url, browser):
 def log_in():
     global driver
 
-    # 点击按钮
-    login_button = driver.find_element(By.XPATH, "//*[@id='header']/div[1]/div[3]/div/a")
-    login_button.click()
+    # 尝试加载 Cookies
+    if load_cookies(driver, 'boss'):
+        driver.refresh()  # 刷新页面使 Cookies 生效
+        if is_logged_in(driver):
+            return  # 已登录则退出
 
-    # 等待微信登录按钮出现
-    # 微信登录按钮的 XPath
-    xpath_locator_wechat_login = "//*[@id='wrap']/div/div[2]/div[2]/div[2]/div[1]/div[4]/a"
-
+    # 点击登录按钮
+    # 点击登录按钮
     try:
-        # 等待微信登录按钮出现，最多等待 10 秒
+        login_button = driver.find_element(By.XPATH, "//*[@id='header']/div[1]/div[3]/div/a")
+        login_button.click()
+    except NoSuchElementException:
+        print("未找到登录按钮，可能已经在登录页面")
+    # 等待微信登录按钮出现
+    xpath_locator_wechat_login = "//*[@id='wrap']/div/div[2]/div[2]/div[2]/div[1]/div[4]/a"
+    try:
         WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, xpath_locator_wechat_login))
-        )
+            EC.presence_of_element_located((By.XPATH, xpath_locator_wechat_login)))
         print("微信登录按钮已找到，尝试点击...")
 
-        # 查找微信登录按钮并点击
+        # 点击微信登录按钮
         wechat_button = driver.find_element(By.XPATH, xpath_locator_wechat_login)
         wechat_button.click()
         print("微信登录按钮点击成功！")
-    except TimeoutException:
-        print("微信登录按钮未找到，可能不是首次登录，跳过点击操作。")
-    except NoSuchElementException:
+    except (TimeoutException, NoSuchElementException):
         print("微信登录按钮未找到，可能不是首次登录，跳过点击操作。")
     except Exception as e:
         print(f"发生未知错误: {e}")
-    print("扫码登录中")
-    #用户信息pic
+
+    # 等待登录成功
+    print("扫码登录中...")
     xpath_locator_wechat_logo = "//*[@id='header']/div[1]/div[3]/ul/li[2]/a/img"
-
-
     WebDriverWait(driver, 20).until(
-        EC.presence_of_element_located((By.XPATH, xpath_locator_wechat_logo))
-    )
-    print('登录成功')
-    # xpath_locator_login_success = "//*[@id='header']/div[1]/div[3]/ul/li[2]/a"
-    # WebDriverWait(driver, 60).until(
-    #     EC.presence_of_element_located((By.XPATH, xpath_locator_login_success))
-    # )
+        EC.presence_of_element_located((By.XPATH, xpath_locator_wechat_logo)))
+    print("登录成功")
+
+    # 保存 Cookies
+    save_cookies(driver, 'boss')
 
 
 def get_job_description():
