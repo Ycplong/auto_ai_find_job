@@ -4,3 +4,5 @@
 *.pyc
 .env
 test.py
+zl_cookies.json
+boss_cookies.json

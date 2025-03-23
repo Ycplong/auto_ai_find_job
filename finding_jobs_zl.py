@@ -20,7 +20,7 @@ def get_driver():
     return driver
 
 
-def open_browser_with_options(url, browser):
+def open_browser_with_options(url, browser,google_path,chrome_driver_path):
     global driver
     if browser == "chrome":
         # 指定 Chrome 浏览器的路径
@@ -52,13 +52,13 @@ def open_browser_with_options(url, browser):
         EC.presence_of_element_located((By.XPATH, xpath_locator))
     )
 
-def log_in():
+def log_in(platform):
     global driver
 
     # 尝试加载 Cookies
     if load_cookies(driver,'zl'):
         driver.refresh()  # 刷新页面使 Cookies 生效
-        if is_logged_in(driver):
+        if is_logged_in(platform):
             return  # 已登录则退出
     #
     # 点击登录按钮
@@ -219,14 +219,18 @@ def one_click_delivery():
             all_select_element = WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((By.XPATH, all_select)))
             all_select_element.click()
-
+            print("准备投递")
             # 获取全部投递按钮并点击
-            all_delivery = "//*[@id='positionList-hook']/div/div[2]/div[1]/div/div[2]/button"
-            all_delivery_element = WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located((By.XPATH, all_delivery))
-            )
-            all_delivery_element.click()
-            print(f"全部投递 {all_delivery_element.text[-2:]} 个职位")
+            try:
+                #//*[@id="positionList-hook"]/div/div[2]/div[1]/div/div[2]/div/span
+                all_delivery = "//*[@id='positionList-hook']/div/div[2]/div[1]/div/div[2]/div/span"
+                all_delivery_element = WebDriverWait(driver, 15).until(
+                    EC.presence_of_element_located((By.XPATH, all_delivery))
+                )
+                all_delivery_element.click()
+                print(f"全部投递 {all_delivery_element.text[-2:]} 个职位")
+            except Exception as e:
+                print(str(e))
 
             # 处理可能出现的弹窗
             try:
@@ -337,7 +341,7 @@ if __name__ == '__main__':
     driver = None
     open_browser_with_options(url,browser_type)
     log_in()
-    label = 'python开发'
+    label = 'python测试开发'
     city = '深圳'
     select_dropdown_option(driver,label,city)
     # 调用 get_job_description()

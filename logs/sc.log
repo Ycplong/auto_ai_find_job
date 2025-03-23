@@ -927,3 +927,156 @@ PS:很多人看到这里都会怀疑?真的假的，这里做一个阐释:
 2025-03-04 18:41:11,729 - __main__ - INFO - 已沟通简历58份
 2025-03-04 18:41:11,808 - __main__ - INFO - 立即沟通
 2025-03-04 18:41:28,628 - httpx - INFO - HTTP Request: POST https://api.deepseek.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-03-15 18:31:30,183 - __main__ - INFO - Resume text loaded successfully.
+2025-03-23 14:07:51,823 - __main__ - INFO - Resume text loaded successfully.
+2025-03-23 14:09:04,717 - __main__ - INFO - Resume text loaded successfully.
+2025-03-23 14:11:28,051 - __main__ - INFO - Resume text loaded successfully.
+2025-03-23 14:12:30,163 - __main__ - INFO - Resume text loaded successfully.
+2025-03-23 14:12:54,609 - __main__ - INFO - Resume text loaded successfully.
+2025-03-23 14:13:14,257 - __main__ - INFO - An error occurred: Message: element click intercepted: Element <a data-v-4c7022cc="" href="/job_detail/873b185c51e3ef5a03V_09S1ElFT.html" class="job-name">...</a> is not clickable at point (842, 200). Other element would receive the click: <div class="dialog-layer"></div>
+  (Session info: chrome=109.0.5414.120)
+Stacktrace:
+Backtrace:
+	(No symbol) [0x010F4AD3]
+	(No symbol) [0x01089211]
+	(No symbol) [0x00F7D9CD]
+	(No symbol) [0x00FB9072]
+	(No symbol) [0x00FB6730]
+	(No symbol) [0x00FB3BCB]
+	(No symbol) [0x00FB2308]
+	(No symbol) [0x00FA68D3]
+	(No symbol) [0x00FCFB3C]
+	(No symbol) [0x00FA61DF]
+	(No symbol) [0x00FCFE94]
+	(No symbol) [0x00FE67B9]
+	(No symbol) [0x00FCF936]
+	(No symbol) [0x00FA4788]
+	(No symbol) [0x00FA5C1D]
+	GetHandleVerifier [0x01369342+2502274]
+	GetHandleVerifier [0x01397959+2692249]
+	GetHandleVerifier [0x0139ABDC+2705180]
+	GetHandleVerifier [0x011A3480+643008]
+	(No symbol) [0x0109208F]
+	(No symbol) [0x01097AB8]
+	(No symbol) [0x01097BA5]
+	(No symbol) [0x010A273B]
+	BaseThreadInitThunk [0x77085D49+25]
+	RtlInitializeExceptionChain [0x77BBCE3B+107]
+	RtlGetAppContainerNamedObjectPath [0x77BBCDC1+561]
+
+2025-03-23 14:13:29,249 - __main__ - INFO - Resume text loaded successfully.
+2025-03-23 14:14:53,458 - __main__ - INFO - Resume text loaded successfully.
+2025-03-23 14:22:05,562 - __main__ - INFO - Resume text loaded successfully.
+2025-03-23 14:22:16,484 - __main__ - INFO - An error occurred: Message: element click intercepted: Element <a data-v-4c7022cc="" href="/job_detail/873b185c51e3ef5a03V_09S1ElFT.html" class="job-name">...</a> is not clickable at point (842, 200). Other element would receive the click: <div class="dialog-layer"></div>
+  (Session info: chrome=109.0.5414.120)
+Stacktrace:
+Backtrace:
+	(No symbol) [0x010F4AD3]
+	(No symbol) [0x01089211]
+	(No symbol) [0x00F7D9CD]
+	(No symbol) [0x00FB9072]
+	(No symbol) [0x00FB6730]
+	(No symbol) [0x00FB3BCB]
+	(No symbol) [0x00FB2308]
+	(No symbol) [0x00FA68D3]
+	(No symbol) [0x00FCFB3C]
+	(No symbol) [0x00FA61DF]
+	(No symbol) [0x00FCFE94]
+	(No symbol) [0x00FE67B9]
+	(No symbol) [0x00FCF936]
+	(No symbol) [0x00FA4788]
+	(No symbol) [0x00FA5C1D]
+	GetHandleVerifier [0x01369342+2502274]
+	GetHandleVerifier [0x01397959+2692249]
+	GetHandleVerifier [0x0139ABDC+2705180]
+	GetHandleVerifier [0x011A3480+643008]
+	(No symbol) [0x0109208F]
+	(No symbol) [0x01097AB8]
+	(No symbol) [0x01097BA5]
+	(No symbol) [0x010A273B]
+	BaseThreadInitThunk [0x77085D49+25]
+	RtlInitializeExceptionChain [0x77BBCE3B+107]
+	RtlGetAppContainerNamedObjectPath [0x77BBCDC1+561]
+
+2025-03-23 14:22:30,343 - __main__ - INFO - Resume text loaded successfully.
+2025-03-23 14:22:43,344 - __main__ - INFO - 已沟通简历2份
+2025-03-23 14:22:46,376 - __main__ - INFO - 已沟通简历3份
+2025-03-23 14:22:49,391 - __main__ - INFO - 已沟通简历4份
+2025-03-23 14:22:52,402 - __main__ - INFO - 已沟通简历5份
+2025-03-23 14:22:55,419 - __main__ - INFO - 已沟通简历6份
+2025-03-23 14:22:58,433 - __main__ - INFO - 已沟通简历7份
+2025-03-23 14:23:01,447 - __main__ - INFO - 已沟通简历8份
+2025-03-23 14:23:04,460 - __main__ - INFO - 已沟通简历9份
+2025-03-23 14:23:07,473 - __main__ - INFO - 已沟通简历10份
+2025-03-23 14:23:10,496 - __main__ - INFO - 已沟通简历11份
+2025-03-23 14:23:13,519 - __main__ - INFO - 已沟通简历12份
+2025-03-23 14:23:16,540 - __main__ - INFO - 已沟通简历13份
+2025-03-23 14:23:19,565 - __main__ - INFO - 已沟通简历14份
+2025-03-23 14:23:22,582 - __main__ - INFO - 已沟通简历15份
+2025-03-23 14:23:25,594 - __main__ - INFO - 已沟通简历16份
+2025-03-23 14:23:28,617 - __main__ - INFO - 已沟通简历17份
+2025-03-23 14:23:31,630 - __main__ - INFO - 已沟通简历18份
+2025-03-23 14:23:34,650 - __main__ - INFO - 已沟通简历19份
+2025-03-23 14:23:37,661 - __main__ - INFO - 已沟通简历20份
+2025-03-23 14:23:40,675 - __main__ - INFO - 已沟通简历21份
+2025-03-23 14:23:43,697 - __main__ - INFO - 已沟通简历22份
+2025-03-23 14:23:46,713 - __main__ - INFO - 已沟通简历23份
+2025-03-23 14:23:49,729 - __main__ - INFO - 已沟通简历24份
+2025-03-23 14:23:52,761 - __main__ - INFO - 已沟通简历25份
+2025-03-23 14:23:55,772 - __main__ - INFO - 已沟通简历26份
+2025-03-23 14:23:58,790 - __main__ - INFO - 已沟通简历27份
+2025-03-23 14:24:01,813 - __main__ - INFO - 已沟通简历28份
+2025-03-23 14:24:04,831 - __main__ - INFO - 已沟通简历29份
+2025-03-23 14:24:07,851 - __main__ - INFO - 已沟通简历30份
+2025-03-23 14:24:10,862 - __main__ - INFO - 已沟通简历31份
+2025-03-23 14:24:13,878 - __main__ - INFO - 已沟通简历32份
+2025-03-23 14:24:16,902 - __main__ - INFO - 已沟通简历33份
+2025-03-23 14:24:16,903 - __main__ - INFO - An error occurred: Message: no such window: target window already closed
+from unknown error: web view not found
+  (Session info: chrome=109.0.5414.120)
+Stacktrace:
+Backtrace:
+	(No symbol) [0x010F4AD3]
+	(No symbol) [0x01089211]
+	(No symbol) [0x00F7D9CD]
+	(No symbol) [0x00F5EF5A]
+	(No symbol) [0x00FD386B]
+	(No symbol) [0x00FE5E66]
+	(No symbol) [0x00FCF936]
+	(No symbol) [0x00FA4788]
+	(No symbol) [0x00FA5C1D]
+	GetHandleVerifier [0x01369342+2502274]
+	GetHandleVerifier [0x01397959+2692249]
+	GetHandleVerifier [0x0139ABDC+2705180]
+	GetHandleVerifier [0x011A3480+643008]
+	(No symbol) [0x0109208F]
+	(No symbol) [0x01097AB8]
+	(No symbol) [0x01097BA5]
+	(No symbol) [0x010A273B]
+	BaseThreadInitThunk [0x77085D49+25]
+	RtlInitializeExceptionChain [0x77BBCE3B+107]
+	RtlGetAppContainerNamedObjectPath [0x77BBCDC1+561]
+
+2025-03-23 14:24:26,662 - __main__ - INFO - Resume text loaded successfully.
+2025-03-23 14:24:36,341 - __main__ - INFO - 立即沟通
+2025-03-23 14:24:57,778 - __main__ - INFO - 返回的求职信息尊敬的HR： 您好！我是XXX公司的员工。在XXX岗位上，我具备以下优势：我对Python编程能力非常熟练，3年以上的工作经验使其成为技术工作的坚实基础。此外，我熟悉大模型适配与应用开发，包括微调、prompt设计等环节，能够很好地适应贵公司对大模型技术的期望。同时，我有丰富的数据库和消息中间件技术经验，并且了解主流的大语言模型原理及应用。我相信我的技能与知识能够为贵公司提供独特的价值观。 感谢您提供本次面试机会，期待有机会和您的团队合作并贡献自己的力量！ 此致 敬礼！
+2025-03-23 14:24:58,879 - __main__ - INFO - 点击沟通成功 职位需求为：岗位职责描述：
+1、负责大模型在具体业务场景的适配和应用，如fine-tuning、prompt设计。
+2、负责大模型的推理优化和应用部署，如压缩量化、推理加速等。
+3、负责跟进具体项目的Agent工作流开发和优化。
+任职资格要求：
+1、计算机相关专业大专及以上学历，3年以上Python 开发经验，有实际项目经验。
+2、熟悉Transformer、GPT系列等模型，对大模型的数据处理及训练技术有深入理解。
+3、了解大语言模型基本原理，有模型微调、RAG等相关经验，有通义千问&百炼平台使用经验者优先。
+4、熟悉数据库技术，如MySQL、PostgresSQL、Elasticsearch、Redis等主流数据库。
+5、熟悉消息中间件技术，如Rabbitmq、Rocketmq、Kafka等主流消息中间件。
+6、熟悉LLMs主流接口框架LangChain / LlamaIndex其中一种。
+7、熟悉RESTful API / RPC API设计，熟悉Linux开发环境和Docker基本操作，有微服务架构经验者优先。
+8、工作态度积极主动，具有工作激情，良好的沟通能力。
+2025-03-23 14:24:59,406 - __main__ - INFO - 已经发送默认消息/匹配到继续沟通按钮
+2025-03-23 14:25:00,036 - __main__ - INFO - 点击继续沟通success
+2025-03-23 15:30:13,587 - __main__ - INFO - 继续沟通
+2025-03-23 15:30:31,612 - __main__ - INFO - 已沟通简历2份
+2025-03-23 15:30:35,729 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000194D250B730>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')': /session/aed70406d4fb178bc1955fee4a6e541d/elements
+2025-03-23 15:30:39,805 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000194D25500A0>: Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。')': /session/aed70406d4fb178bc1955fee4a6e541d/elements
+2025-03-23 15:33:44,855 - __main__ - INFO - An error occurred: 'NoneType' object is not iterable

@@ -19,7 +19,7 @@ def get_driver():
     return driver
 
 
-def open_browser_with_options(url, browser):
+def open_browser_with_options(url, browser,google_path,chrome_driver_path):
     global driver
     if browser == "chrome":
         # 指定 Chrome 浏览器的路径
@@ -52,13 +52,13 @@ def open_browser_with_options(url, browser):
     )
 
 
-def log_in():
+def log_in(platform):
     global driver
 
     # 尝试加载 Cookies
     if load_cookies(driver, 'boss'):
         driver.refresh()  # 刷新页面使 Cookies 生效
-        if is_logged_in(driver):
+        if is_logged_in(driver,platform):
             return  # 已登录则退出
 
     # 点击登录按钮

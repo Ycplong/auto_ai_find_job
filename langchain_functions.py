@@ -1,6 +1,6 @@
 import json
 import os
-from telnetlib import EC
+from selenium.webdriver.support import expected_conditions as EC
 
 import requests
 from dotenv import load_dotenv
@@ -218,10 +218,10 @@ def is_logged_in(driver, platform):
     if platform not in login_check_xpaths:
         print(f"未知平台: {platform}")
         return False
-
+    login_check_xpath = login_check_xpaths[platform]
     try:
         WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.XPATH, login_check_xpaths[platform]))
+            EC.presence_of_element_located((By.XPATH,login_check_xpath))
         )
         print(f"{platform}：检测到未登录，需要扫码")
         return False  # 发现登录按钮，说明未登录

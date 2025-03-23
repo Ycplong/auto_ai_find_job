@@ -15,9 +15,10 @@ from dotenv import load_dotenv
 
 from langchain.vectorstores import FAISS
 from langchain.text_splitter import CharacterTextSplitter
+from PyPDF2 import PdfReader
 
-
-
+import tkinter as tk
+from tkinter import filedialog, messagebox
 
 
 
@@ -87,24 +88,26 @@ def send_response_and_go_back(driver, response):
     driver.back()
     time.sleep(3)
 
-# 读取简历数据
+
 def read_resumes():
     resume_text = ""
     resume_folder = "./resume"
 
-    # 遍历 resume 文件夹中的所有 PDF 文件
-    for filename in os.listdir(resume_folder):
-        if filename.endswith(".pdf"):
-            file_path = os.path.join(resume_folder, filename)
-            # 打开 PDF 文件
-            with open(file_path, "rb") as f:
-                from PyPDF2 import PdfReader
-                reader = PdfReader(f)
-                # 提取每一页的文本
-                for page in reader.pages:
-                    resume_text += page.extract_text()
+    if not os.path.exists(resume_folder):
+        return None, "简历文件夹不存在！"
 
-    return resume_text
+    pdf_files = [f for f in os.listdir(resume_folder) if f.endswith(".pdf")]
+    if not pdf_files:
+        return None, "简历文件不存在！"
+
+    for filename in pdf_files:
+        file_path = os.path.join(resume_folder, filename)
+        with open(file_path, "rb") as f:
+            reader = PdfReader(f)
+            for page in reader.pages:
+                resume_text += page.extract_text() or ""
+
+    return resume_text, "简历符合要求！"
 
 
 # 获取文本块
@@ -170,63 +173,15 @@ def chat(user_input, assistant_id=None, thread_id=None):
 
 
     return call_deepseek_api(user_input)
-    # Run the Assistant
-    # try:
-    #     # Add the user's message to the thread
-    #     client.beta.threads.messages.create(
-    #         thread_id=thread_id,
-    #         role="user",
-    #         content=user_input
-    #     )
-    #
-    #     # Start the Assistant Run
-    #     run = client.beta.threads.runs.create(
-    #         thread_id=thread_id,
-    #         assistant_id=assistant_id
-    #     )
-    #
-    #     # Check if the Run requires action (function call)
-    #     while True:
-    #         run_status = client.beta.threads.runs.retrieve(
-    #             thread_id=thread_id,
-    #             run_id=run.id,
-    #             timeout=60  # 设置超时时间为60秒
-    #         )
-    #
-    #         if run_status.status == 'completed':
-    #             break
-    #         elif run_status.status == 'requires_action':
-    #             # Here you can handle specific actions if your assistant requires them
-    #             # ...
-    #             time.sleep(1)  # Wait for a second before checking again
-    #
-    #     # Retrieve and return the latest message from the assistant
-    #     messages = client.beta.threads.messages.list(thread_id=thread_id)
-    #     assistant_message = messages.data[0].content[0].text.value
-    #     logger.info(f'deepseek返回的职业推荐消息: {assistant_message}')
-    #
-    #     time.sleep(2000)
-    #     # 将换行符替换为一个空格
-    #     formatted_message = assistant_message.replace("\n", " ").replace(" ", "").replace("真诚的，龙思卓", "")
-    #     import re
-    #     formatted_message = re.sub(r'【.*?】', '', formatted_message)
-    #
-    #
-    #     # response_data = json.dumps({"response": assistant_message, "thread_id": thread_id})
-    #     return formatted_message
-    #
-    # except Exception as e:
-    #     logger.info(f"An error occurred: {e}")
-    #     error_response = json.dumps({"error": str(e)})
-    #
 
-def send_job_descriptions_to_chat(url, browser_type, label, assistant_id=None, vectorstore=None,platform='boss',city=None):
+
+def send_job_descriptions_to_chat(url, browser_type, label, assistant_id=None, vectorstore=None,platform='boss',google_path = None,city='深圳',chrome_driver_path=None):
 
     # 开始浏览并获取工作描述
     if platform == 'boss':
         import finding_jobs
-        finding_jobs.open_browser_with_options(url, browser_type)
-        finding_jobs.log_in()
+        finding_jobs.open_browser_with_options(url, browser_type,google_path,chrome_driver_path )
+        finding_jobs.log_in(platform)
         job_index = 1  # 开始的索引
         index_c = 1
         while True:
@@ -302,8 +257,8 @@ def send_job_descriptions_to_chat(url, browser_type, label, assistant_id=None, v
                 break
     elif platform == 'zl':
         import finding_jobs_zl
-        finding_jobs_zl.open_browser_with_options(url, browser_type)
-        finding_jobs_zl.log_in()
+        finding_jobs_zl.open_browser_with_options(url, browser_type,google_path,chrome_driver_path )
+        finding_jobs_zl.log_in(platform)
         try:
             # 获取 driver 实例
             driver = finding_jobs_zl.get_driver()
@@ -325,20 +280,83 @@ def send_job_descriptions_to_chat(url, browser_type, label, assistant_id=None, v
 
 
 if __name__ == '__main__':
-    # 读取简历
-    resume_text = read_resumes()
-    logger.info("Resume text loaded successfully.")
-
-    # # 获取文本块
-    # chunks = get_text_chunks(resume_text)
-    # logger.info("Text chunks created successfully.")
-
-    # # 获取向量存储
-    # vectorstore = get_vectorstore(chunks)
-    # logger.info("Vectorstore created successfully.")
-    platform = 'zl'
-
-    url = "https://www.zhipin.com/web/geek/job-recommend?ka=header-job-recommend"
+    # 默认参数
+    city = "深圳"
+    platform = "boss"
+    google_path = r"C:\\Users\\Administrator\\AppData\\Local\\Google\\Chrome\\Bin\\chrome.exe"
+    url1 = "https://www.zhipin.com/web/geek/job-recommend?ka=header-job-recommend"
+    url2 = "https://www.zhaopin.com/"
+    chrome_driver_path = "chromedriver.exe"
     browser_type = "chrome"
-    label = "Python（深圳）"  # 想要选择的下拉菜单项
-    send_job_descriptions_to_chat(url, browser_type, label, vectorstore=resume_text,platform=platform)
+    label = "Python后端"
+
+    # 创建 GUI 窗口
+    root = tk.Tk()
+    root.title("自动求职工具")
+    root.geometry("400x300")
+
+    # 平台选择
+    platform_var = tk.StringVar(value="boss")
+    tk.Label(root, text="选择平台:").pack()
+    tk.Radiobutton(root, text="BOSS直聘", variable=platform_var, value="boss").pack()
+    tk.Radiobutton(root, text="智联招聘", variable=platform_var, value="zl").pack()
+
+    tk.Label(root, text="输入职位:").pack()
+    job_position_entry = tk.Entry(root, width=40)
+    job_position_entry.insert(0, label)  # Default value is set to "Python后端"
+    job_position_entry.pack()
+
+    tk.Label(root, text="输入城市:").pack()
+    city_position_entry = tk.Entry(root, width=40)
+    city_position_entry.insert(0, city)  # Default value is set to "Python后端"
+    city_position_entry.pack()
+
+    # 输入职位
+    def update_label():
+        global label
+        label = job_position_entry.get()
+        print(label)
+    def update_city():
+        global city
+        city = city_position_entry.get()
+        print(city)
+
+    # 检查简历
+    def check_resume():
+        _, message = read_resumes()
+        messagebox.showinfo("检查简历", message)
+
+    # 选择 Google Chrome 路径
+    def select_google_path():
+        global google_path
+        file_path = filedialog.askopenfilename(title="选择 Chrome 可执行文件", filetypes=[("Chrome", "chrome.exe")])
+        if file_path:
+            google_path = file_path
+            google_path_label.config(text=google_path)
+
+
+    tk.Button(root, text="选择 Chrome 路径", command=select_google_path).pack()
+    google_path_label = tk.Label(root, text=google_path, wraplength=350)
+    google_path_label.pack()
+
+
+    # 开始任务
+    def start_task():
+        update_label()  # 调用 update_label 更新职位
+        update_city()
+        selected_platform = platform_var.get()
+        url = url1 if selected_platform == "boss" else url2
+        resume_text, _ = read_resumes()
+        if resume_text:
+            send_job_descriptions_to_chat(url, browser_type, label, vectorstore=resume_text, platform=selected_platform,
+                                          google_path=google_path, chrome_driver_path=chrome_driver_path,city=city)
+
+
+    tk.Button(root, text="检查简历", command=check_resume).pack()
+    tk.Button(root, text="开始任务", command=start_task).pack()
+
+
+
+
+    # 运行 GUI
+    root.mainloop()
