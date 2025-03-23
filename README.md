@@ -17,7 +17,7 @@
 ### 1. 安装 Google Chrome
 
 - 请先卸载您当前的 Google Chrome 版本，以确保安装的是正确版本。
-- 下载并安装 Google Chrome 版本：**109.0.5414.165**（[下载链接](https://www.google.com/chrome/browser/109.0.5414.165_chrome_installer.exe)）。
+- 下载并安装 Google Chrome 版本：**109.0.5414.165**（109.0.5414.165_chrome_installer.exe）。
 - 安装完成后，找到 `chrome.exe` 的安装路径，用于后续配置脚本中的 Chrome 浏览器路径。
 
 ### 2. 配置简历
@@ -86,6 +86,9 @@ python main_find.py
 ### 2. 使用 GUI 界面
 
 运行脚本后，会弹出图形界面（UI），您可以进行以下操作：
+![img.png](img.png)
+
+
 
 - **选择平台**：选择您想要投递简历的平台（BOSS直聘或智联招聘）。
 - **选择职位**：输入您要投递的职位名称。

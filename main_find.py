@@ -292,7 +292,7 @@ if __name__ == '__main__':
 
     # 创建 GUI 窗口
     root = tk.Tk()
-    root.title("自动求职工具")
+    root.title("DEEPSEEK自动求职工具")
     root.geometry("400x300")
 
     # 平台选择
