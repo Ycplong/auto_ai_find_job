@@ -67,12 +67,12 @@ def get_vectorstore(text_chunks):
 
 
 def should_use_local_langchain():
-    return True
+    return False
 
 def should_use_langchain():
     return False
 
-def generate_letter(resume_text,job_description):
+def generate_letter_remote(resume_text,job_description):
     """
     根据工作描述和简历内容生成求职信。
 
@@ -123,7 +123,7 @@ def generate_letter(resume_text,job_description):
         return "你好"
 
 
-def chat_local(resume_text,job_description):
+def generate_letter_local(resume_text,job_description):
     """
         根据工作描述和简历内容生成求职信。
 
@@ -157,9 +157,7 @@ def chat_local(resume_text,job_description):
 
         data = {
             "model":"deepseek-r1:1.5b",
-            "messages":[
-                {"role": "system", "content": f"你是一位专业的求职助手，能够根据简历和工作描述生成高质量的求职信。以下是简历内容：\n{resume_text}"},
-                {"role": "user", "content": prompt}],
+            "prompt":prompt,
         "stream": False }
         # 调用 DeepSeek API
         response = requests.post(url, headers=headers, json=data)

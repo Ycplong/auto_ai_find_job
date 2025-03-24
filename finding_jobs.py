@@ -182,3 +182,5 @@ if __name__ =="__main__":
     # 关闭浏览器
     if driver:
         driver.quit()
+
+    from langchain.memory import BaseMemory

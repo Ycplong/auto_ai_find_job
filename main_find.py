@@ -200,12 +200,10 @@ def send_job_descriptions_to_chat(url, browser_type, label, assistant_id=None, v
                     time.sleep(15)
                     if element == '立即沟通':
                         # 发送描述到聊天并打印响应
-                        if should_use_langchain():
-                            response = '你好'
-                        if not should_use_local_langchain():
-                            response = generate_letter(vectorstore, job_description)
+                        if  should_use_local_langchain():
+                            response = generate_letter_local(vectorstore, job_description)
                         else:
-                            response = chat_local(vectorstore, job_description)
+                            response = generate_letter_remote(vectorstore, job_description)
                         logger.info(f"返回的求职信息{response}")
                         time.sleep(1)
                         # 点击沟通按钮
