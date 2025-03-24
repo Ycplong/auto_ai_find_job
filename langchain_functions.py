@@ -133,6 +133,7 @@ class RGAnalyzer:
                     report.append(f"  ▸ 匹配: {req['requirement']} ({req['similarity']:.0%})")
 
         return '\n'.join(report)
+
 class JobApplicationHelper:
     """
     一个处理生成求职信的助手类。
@@ -282,4 +283,4 @@ if __name__ =="__main__":
     """
     prompt = generate_prompt_from_rga(job_description)
     job_assn = JobApplicationHelper()
-    res = job_assn.generate_letter()
+    res = job_assn.generate_letter(prompt)
