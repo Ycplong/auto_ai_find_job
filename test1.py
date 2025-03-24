@@ -1,18 +1,13 @@
-
 import os
 import numpy as np
 import requests
-from dotenv import load_dotenv
 
 from PyPDF2 import PdfReader
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-from config import client  # 从配置文件导入 client
-
-
-load_dotenv()
+from config import client
 
 
 class RGAnalyzer:
@@ -22,7 +17,6 @@ class RGAnalyzer:
     """
 
     def __init__(self, embedding_model='all-MiniLM-L6-v2'):
-        """初始化嵌入模型和文本分割器"""
         self.embedding_model = SentenceTransformer(embedding_model)
         self.text_splitter = RecursiveCharacterTextSplitter(
             separators=["\n\n", "\n", "。", " ", ""],
@@ -34,7 +28,7 @@ class RGAnalyzer:
     # 阶段1：数据准备
     # ----------------------
     def load_resumes(self, folder_path="./resume"):
-        """加载并合并简历文本"""
+        """加载并合并简历文本（RGA预处理阶段）"""
         resume_text = ""
         for filename in os.listdir(folder_path):
             if filename.endswith(".pdf"):
@@ -44,29 +38,36 @@ class RGAnalyzer:
         return self._clean_text(resume_text)
 
     def _clean_text(self, text):
-        """文本清洗"""
+        """文本清洗（私有方法）"""
         return ' '.join(text.split()).strip()
 
     def chunk_text(self, text):
-        """将文本分块"""
+        """文本分块（RGA预处理阶段）"""
         return self.text_splitter.split_text(text)
 
     # ----------------------
     # 阶段2：嵌入计算
     # ----------------------
     def encode_texts(self, texts):
-        """将文本列表转化为嵌入向量"""
+        """生成文本嵌入向量（RGA嵌入阶段）"""
         return self.embedding_model.encode(texts)
 
     # ----------------------
     # 阶段3：核心分析
     # ----------------------
     def calculate_similarity(self, resume_embeddings, job_embeddings):
-        """计算简历和岗位要求之间的相似度矩阵"""
+        """计算相似度矩阵（RGA匹配阶段）"""
         return cosine_similarity(resume_embeddings, job_embeddings)
 
     def dynamic_top_k(self, sim_matrix, min_k=1, max_k=5, threshold=0.7):
-        """动态Top-K分析"""
+        """
+        动态Top-K分析（RGA匹配阶段）
+        返回：[{
+            "requirement_idx": int,
+            "top_indices": List[int],
+            "k": int
+        }]
+        """
         results = []
         for j in range(sim_matrix.shape[1]):
             qualified = np.sum(sim_matrix[:, j] > threshold)
@@ -84,7 +85,16 @@ class RGAnalyzer:
     # 阶段4：结果生成
     # ----------------------
     def generate_analysis_report(self, sim_matrix, resume_chunks, job_requirements):
-        """生成RGA分析报告"""
+        """
+        生成完整RGA报告（RGA报告阶段）
+        返回结构：
+        {
+            "by_requirement": [],  # 岗位视角
+            "by_chunk": [],        # 简历视角
+            "gap_score": float     # 整体匹配度
+        }
+        """
+        # 岗位要求 -> 简历匹配
         requirement_results = []
         for j in range(len(job_requirements)):
             top_indices = np.argsort(sim_matrix[:, j])[-3:][::-1]
@@ -96,6 +106,7 @@ class RGAnalyzer:
                 ]
             })
 
+        # 简历 -> 岗位匹配
         chunk_results = []
         for i in range(len(resume_chunks)):
             top_indices = np.argsort(sim_matrix[i, :])[-3:][::-1]
@@ -114,12 +125,13 @@ class RGAnalyzer:
         }
 
     def format_report(self, analysis_result, job_title):
-        """生成可读性报告"""
+        """生成可读性报告（RGA报告阶段）"""
         report = [
             f"=== {job_title} RGA分析报告 ===",
             f"整体匹配度: {(1 - analysis_result['gap_score']) * 100:.1f}%",
             "\n【岗位要求匹配】"
         ]
+
         for req in analysis_result['by_requirement']:
             report.append(f"\n► {req['requirement']}")
             for match in req["top_matches"]:
@@ -133,6 +145,68 @@ class RGAnalyzer:
                     report.append(f"  ▸ 匹配: {req['requirement']} ({req['similarity']:.0%})")
 
         return '\n'.join(report)
+
+
+def generate_prompt_from_rga(resume_text, job_description, top_k=3):
+    """
+    根据RGA分析结果生成求职信的Prompt，并包含Top-K筛选
+
+    参数:
+        resume_text (str): 简历文本
+        job_description (str): 岗位描述
+        top_k (int): 每个岗位要求和简历块的Top-K匹配数
+
+    返回:
+        str: 生成的求职信的Prompt
+    """
+    # 创建RGA分析器对象
+    rga = RGAnalyzer()
+    #0.读取简历
+    resume_text = rga.load_resumes()
+
+    # 1. 进行RGA分析阶段：
+    # -----
+    resume_chunks = rga.chunk_text(resume_text)  # 将简历文本分块
+    job_requirements = job_description.split("\n")  # 将岗位要求按行拆分
+
+    resume_emb = rga.encode_texts(resume_chunks)  # 将简历分块编码为嵌入向量
+    job_emb = rga.encode_texts(job_requirements)  # 将岗位要求编码为嵌入向量
+
+    # 计算简历和岗位要求之间的相似度矩阵
+    sim_matrix = rga.calculate_similarity(resume_emb, job_emb)
+
+    # 2. 生成RGA分析报告阶段：
+    # -----
+    analysis_result = rga.generate_analysis_report(sim_matrix, resume_chunks, job_requirements)
+
+    # 3. 基于RGA报告生成求职信的Prompt：
+    # -----
+    prompt = f"""
+    你是一位求职助手，请根据以下信息为求职者写一封求职信：
+
+    - 岗位要求：{job_description}
+    - 简历优势：根据RGA分析，简历在以下岗位要求上有显著优势：
+    """
+
+    # 使用 Top-K 策略进行筛选
+    for req in analysis_result["by_requirement"]:
+        prompt += f"\n  - 岗位要求：{req['requirement']}"  # 添加岗位要求
+        top_matches = req["top_matches"][:top_k]  # 获取Top-K匹配项
+
+        for match in top_matches:
+            prompt += f"\n    - 简历中相关部分：{match['chunk'][:100]}... (相似度: {match['similarity'] * 100:.2f}%)"  # 添加简历中与该要求匹配的内容
+
+    # 在Prompt末尾，要求AI生成一个简洁的求职信，突出求职者的优势
+    prompt += "\n请根据这些信息，撰写一封简洁的、专业的求职信，突出求职者的优势。"
+
+    return prompt  # 返回生成的求职信Prompt
+
+
+# ---- 解释每个步骤的作用 ----
+
+
+
+
 class JobApplicationHelper:
     """
     一个处理生成求职信的助手类。
@@ -233,53 +307,20 @@ class JobApplicationHelper:
             print(f"生成求职信时发生错误: {e}")
             return "生成求职信时出错"
 
-def generate_prompt_from_rga(job_description, top_k=3):
-    """
-    根据RGA分析结果生成求职信的Prompt，并包含Top-K筛选
-    """
-    rga = RGAnalyzer()
-    resume_text = rga.load_resumes()
-    # 进行RGA分析
-    resume_chunks = rga.chunk_text(resume_text)
-    job_requirements = job_description.split("\n")
-    resume_emb = rga.encode_texts(resume_chunks)
-    job_emb = rga.encode_texts(job_requirements)
-    sim_matrix = rga.calculate_similarity(resume_emb, job_emb)
+if __name__=="__main__":
 
-    # 生成分析报告
-    analysis_result = rga.generate_analysis_report(sim_matrix, resume_chunks, job_requirements)
-
-    # 生成求职信的Prompt
-    prompt = f"""
-    你是一位求职助手，请根据以下信息为求职者写一封求职信：
-
-    - 岗位要求：{job_description}
-    - 简历优势：根据RGA分析，简历在以下岗位要求上有显著优势：
-    """
-
-    # 使用 Top-K 策略进行筛选
-    for req in analysis_result["by_requirement"]:
-        prompt += f"\n  - 岗位要求：{req['requirement']}"
-        top_matches = req["top_matches"][:top_k]
-        for match in top_matches:
-            prompt += f"\n    - 简历中相关部分：{match['chunk'][:100]}... (相似度: {match['similarity'] * 100:.2f}%)"
-
-    prompt += "\n请根据这些信息，撰写一封简洁的、专业的求职信，突出求职者的优势。"
-
-    return prompt
-
-
-
-
-
-
-
-
-if __name__ =="__main__":
     job_description = """
-    我们正在寻找一名软件开发人员，要求具备丰富的 Python 或 Java 开发经验。
-    该职位需要独立设计和开发系统，并能够与团队成员协作完成项目。
+        这是一个高级Python开发工程师的职位要求。候选人需具备5年以上Python开发经验，并熟悉Django/Flask框架，具备云计算平台使用经验以及本科及以上学历。
     """
-    prompt = generate_prompt_from_rga(job_description)
-    job_assn = JobApplicationHelper()
-    res = job_assn.generate_letter()
+
+    # 假设简历文本已经准备好（通常你可以通过 `RGAnalyzer` 类来处理简历）
+    resumes = """
+        具备6年Python开发经验，熟悉Django和Flask框架，曾参与多个基于云平台的项目。拥有云计算平台的深厚理解，以及多项优秀的项目开发经验。
+    """
+
+    # 生成Prompt
+    prompt = generate_prompt_from_rga(resumes, job_description,3)
+
+    # 向AI发送请求生成求职信
+    letter = JobApplicationHelper().generate_letter_local(prompt)
+    print("\n生成的求职信：\n", letter)
