@@ -86,7 +86,7 @@ python main_find_ui.py
 ### 2. 使用 GUI 界面
 
 运行脚本后，会弹出图形界面（UI），您可以进行以下操作：
-![img.png](img.png)
+![img.png](img_1.png)
 
 
 
