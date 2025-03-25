@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import sys
 
@@ -7,10 +8,13 @@ import requests
 from dotenv import load_dotenv
 
 from PyPDF2 import PdfReader
+from selenium.common import TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-
+from selenium.webdriver.support import expected_conditions as EC
 from config import client  # 从配置文件导入 client
 
 load_dotenv()
@@ -168,9 +172,22 @@ class JobApplicationHelper:
     """改进版求职助手（解决编码问题）"""
 
     def __init__(self, use_local=True, local_url="http://127.0.0.1:11434/api/generate", model="deepseek-r1:1.5b"):
-        self.use_local = use_local
+        self._use_local = use_local  # 改为私有变量
         self.local_url = local_url
         self.model = model
+
+    @property
+    def use_local(self):
+        """获取当前模式"""
+        return self._use_local
+
+    @use_local.setter
+    def use_local(self, value):
+        """设置本地/远程模式"""
+        if not isinstance(value, bool):
+            raise ValueError("必须传入布尔值")
+        self._use_local = value
+        print(f"已切换至{'本地' if value else '远程'}模式")
 
     def generate_letter(self, prompt, temperature=0.7):
         try:
@@ -265,27 +282,141 @@ def generate_prompt_from_rga(job_description, top_k=3):
         raise
 
 
-if __name__ == "__main__":
-    print(2)
-    # 示例用法
-    job_desc = """
-    我们正在寻找一名Python开发工程师，要求：
-    - 3年以上Python开发经验
-    - 熟悉Django/Flask框架
-    - 有云计算(AWS/Azure)经验者优先
-    - 良好的算法和数据结构基础
+def generate_cover_letter(job_description, resume_folder="./resume", save_report=False):
     """
-    print(1)
-    try:
+    封装完整的求职信生成流程
 
-        prompt = generate_prompt_from_rga(job_desc)
-        print("正在生成生成prompt成功...")
-        # print(prompt)
-        helper = JobApplicationHelper()
+    参数:
+        job_description (str): 岗位描述文本
+        resume_folder (str): 简历PDF所在目录路径
+        save_report (bool): 是否保存分析报告
+
+    返回:
+        tuple: (求职信内容, 分析报告内容) 或 (None, None)（失败时）
+    """
+    # 使用全局helper实例
+    global helper
+    print("[1/4] 初始化组件...")
+    rga = RGAnalyzer()
+
+
+    try:
+        # 阶段1：准备数据
+        print("[2/4] 分析简历和岗位要求...")
+        resume_text = rga.load_resumes(resume_folder)
+        if not resume_text:
+            raise ValueError("未读取到有效的简历内容，请检查PDF文件")
+
+        resume_chunks = rga.chunk_text(resume_text)
+        job_requirements = [req.strip() for req in job_description.split("\n") if req.strip()]
+
+        # 阶段2：计算匹配度
+        print("[3/4] 计算岗位匹配度...")
+        resume_emb = rga.encode_texts(resume_chunks)
+        job_emb = rga.encode_texts(job_requirements)
+        sim_matrix = rga.calculate_similarity(resume_emb, job_emb)
+
+        # 阶段3：生成报告
+        analysis_result = rga.generate_analysis_report(sim_matrix, resume_chunks, job_requirements)
+        report_content = rga.format_report(analysis_result, "目标岗位")
+
+        # 阶段4：生成求职信
+        print("[4/4] 生成求职信...")
+        print(f"当前生成模式: {'本地' if helper.use_local else '远程'}")
+        prompt = generate_prompt_from_rga(job_description)
         cover_letter = helper.generate_letter(prompt)
 
-        print("\n生成的求职信：")
-        print(cover_letter)
+        # 保存报告（可选）
+        if save_report:
+            with open("analysis_report.txt", "w", encoding="utf-8") as f:
+                f.write(report_content)
+            print("分析报告已保存到 analysis_report.txt")
+
+        return cover_letter, report_content
+
+    except Exception as e:
+        print(f"\n[ERROR] 生成过程中出错: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None, None
+
+def get_cookie_filename(driver,platform):
+    """根据platform生成的 Cookie 文件名"""
+    return f"{platform}_cookies.json"
+
+def save_cookies(driver,platform):
+    """保存 Cookies 到文件"""
+    file_path = get_cookie_filename(driver,platform)
+    cookies = driver.get_cookies()
+    with open(file_path, "w") as file:
+        json.dump(cookies, file)
+    print(f"Cookies 已保存到 {file_path}")
+
+def load_cookies(driver,platform):
+    """从文件加载 Cookies"""
+    file_path = get_cookie_filename(driver,platform)
+    if not os.path.exists(file_path):
+        print("没有找到 Cookies 文件，需重新登录")
+        return False
+    try:
+        with open(file_path, "r") as file:
+            cookies = json.load(file)
+            for cookie in cookies:
+                driver.add_cookie(cookie)
+        print(f"Cookies 已加载自 {file_path}")
+        return True
+    except Exception as e:
+        print(f"加载 Cookies 失败: {e}")
+        return False
+
+def is_logged_in(driver, platform):
+    """检查是否已登录"""
+    # 根据不同平台设置登录检查的 XPath
+    login_check_xpaths = {
+        "boss": "//*[@id='header']/div[1]/div[4]/div/a",  # BOSS 平台
+        "zl": "//*[@id='right_nav_header']/div/div[2]/a[2]"  # 智联招聘平台
+    }
+
+    if platform not in login_check_xpaths:
+        print(f"未知平台: {platform}")
+        return False
+    login_check_xpath = login_check_xpaths[platform]
+    try:
+        WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((By.XPATH,login_check_xpath))
+        )
+        print(f"{platform}：检测到未登录，需要扫码")
+        return False  # 发现登录按钮，说明未登录
+    except TimeoutException:
+        print(f"{platform}：未发现登录按钮，已登录")
+        return True  # 未发现登录按钮，说明已登录
+
+
+
+
+if __name__ == "__main__":
+    pass
+
+    # print(2)
+    # # 示例用法
+    # job_desc = """
+    # 我们正在寻找一名Python开发工程师，要求：
+    # - 3年以上Python开发经验
+    # - 熟悉Django/Flask框架
+    # - 有云计算(AWS/Azure)经验者优先
+    # - 良好的算法和数据结构基础
+    # """
+    # print(1)
+    # try:
+    #
+    #     prompt = generate_prompt_from_rga(job_desc)
+    #     print("正在生成生成prompt成功...")
+    #     # print(prompt)
+    #     helper = JobApplicationHelper()
+    #     cover_letter = helper.generate_letter(prompt)
+    #
+    #     print("\n生成的求职信：")
+    #     print(cover_letter)
 
         # 可选：保存分析报告
         # rga = RGAnalyzer()
@@ -299,6 +430,3 @@ if __name__ == "__main__":
         #
         # with open("analysis_report.txt", "w") as f:
         #     f.write(rga.format_report(report, "Python开发工程师"))
-
-    except Exception as e:
-        print(f"程序出错: {str(e)}")

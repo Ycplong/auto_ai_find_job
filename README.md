@@ -80,7 +80,7 @@
 打开命令行，进入项目目录，运行 `main.py` 脚本：
 
 ```bash
-python main_find.py
+python main_find_ui.py
 ```
 
 ### 2. 使用 GUI 界面
