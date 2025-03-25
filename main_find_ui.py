@@ -171,7 +171,7 @@ class JobHunterApp:
         frame.pack(fill=tk.X, pady=10)
 
         tk.Button(
-            frame, text="占位", command=self.check_resume, width=15
+            frame, text="生成简历职位分析报告", command=self.check_resume, width=15
         ).pack(side=tk.LEFT, padx=5)
 
         tk.Button(
