@@ -1,5 +1,7 @@
-
+import io
 import os
+import sys
+
 import numpy as np
 import requests
 from dotenv import load_dotenv
@@ -11,14 +13,17 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 from config import client  # 从配置文件导入 client
 
-
 load_dotenv()
-
+# 修复Windows系统的编码问题
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 class RGAnalyzer:
     """
-    RGA（Relevance Gap Analysis）全流程分析器
-    包含：数据准备 -> 嵌入计算 -> 匹配分析 -> 报告生成
+    改进版RGA（Relevance Gap Analysis）分析器
+    主要优化点：
+    1. 智能Top-K选择算法
+    2. 阈值过滤低质量匹配
+    3. 结果加权排序
     """
 
     def __init__(self, embedding_model='all-MiniLM-L6-v2'):
@@ -34,13 +39,20 @@ class RGAnalyzer:
     # 阶段1：数据准备
     # ----------------------
     def load_resumes(self, folder_path="./resume"):
-        """加载并合并简历文本"""
+        """处理中文PDF读取"""
         resume_text = ""
         for filename in os.listdir(folder_path):
             if filename.endswith(".pdf"):
-                with open(os.path.join(folder_path, filename), "rb") as f:
-                    reader = PdfReader(f)
-                    resume_text += "\n".join(page.extract_text() for page in reader.pages)
+                filepath = os.path.join(folder_path, filename)
+                try:
+                    with open(filepath, "rb") as f:
+                        reader = PdfReader(f)
+                        for page in reader.pages:
+                            text = page.extract_text()
+                            if text:
+                                resume_text += text + "\n"
+                except Exception as e:
+                    print(f"读取文件 {filename} 出错: {str(e)}")
         return self._clean_text(resume_text)
 
     def _clean_text(self, text):
@@ -59,228 +71,234 @@ class RGAnalyzer:
         return self.embedding_model.encode(texts)
 
     # ----------------------
-    # 阶段3：核心分析
+    # 阶段3：核心分析（改进版）
     # ----------------------
     def calculate_similarity(self, resume_embeddings, job_embeddings):
-        """计算简历和岗位要求之间的相似度矩阵"""
-        return cosine_similarity(resume_embeddings, job_embeddings)
+        """改进的相似度计算（包含标准化）"""
+        sim_matrix = cosine_similarity(resume_embeddings, job_embeddings)
+        # 标准化到0-1范围
+        sim_matrix = (sim_matrix - sim_matrix.min()) / (sim_matrix.max() - sim_matrix.min())
+        return sim_matrix
 
-    def dynamic_top_k(self, sim_matrix, min_k=1, max_k=5, threshold=0.7):
-        """动态Top-K分析"""
+    def smart_top_k(self, sim_matrix, threshold=0.5, max_k=3):
+        """
+        智能Top-K选择算法
+        参数:
+            threshold: 相似度阈值，默认0.5
+            max_k: 每个要求最多匹配的简历块数
+        """
         results = []
         for j in range(sim_matrix.shape[1]):
-            qualified = np.sum(sim_matrix[:, j] > threshold)
-            k = min(max(qualified, min_k), max_k)
-            top_indices = np.argpartition(sim_matrix[:, j], -k)[-k:]
-            top_indices = top_indices[np.argsort(-sim_matrix[top_indices, j])]
-            results.append({
-                "requirement_idx": j,
-                "top_indices": top_indices.tolist(),
-                "k": k
-            })
+            # 获取超过阈值的所有片段索引
+            qualified = np.where(sim_matrix[:, j] > threshold)[0]
+
+            if len(qualified) == 0:
+                # 如果没有达到阈值的，取最相关的一个
+                top_idx = np.argmax(sim_matrix[:, j])
+                results.append({
+                    "requirement_idx": j,
+                    "matched_indices": [int(top_idx)],
+                    "similarities": [float(sim_matrix[top_idx, j])]
+                })
+            else:
+                # 按相似度降序排列
+                sorted_indices = qualified[np.argsort(-sim_matrix[qualified, j])]
+                # 限制最大数量
+                selected_indices = sorted_indices[:max_k]
+                results.append({
+                    "requirement_idx": j,
+                    "matched_indices": [int(i) for i in selected_indices],
+                    "similarities": [float(sim_matrix[i, j]) for i in selected_indices]
+                })
         return results
 
     # ----------------------
-    # 阶段4：结果生成
+    # 阶段4：结果生成（改进版）
     # ----------------------
     def generate_analysis_report(self, sim_matrix, resume_chunks, job_requirements):
-        """生成RGA分析报告"""
+        """生成带智能排序的分析报告"""
+        top_k_results = self.smart_top_k(sim_matrix)
+
         requirement_results = []
-        for j in range(len(job_requirements)):
-            top_indices = np.argsort(sim_matrix[:, j])[-3:][::-1]
+        for result in top_k_results:
+            j = result["requirement_idx"]
             requirement_results.append({
                 "requirement": job_requirements[j],
-                "top_matches": [
-                    {"chunk": resume_chunks[i], "similarity": float(sim_matrix[i, j])}
-                    for i in top_indices
-                ]
+                "matches": [
+                    {
+                        "chunk": resume_chunks[i],
+                        "similarity": result["similarities"][idx]
+                    }
+                    for idx, i in enumerate(result["matched_indices"])
+                ],
+                "avg_similarity": np.mean(result["similarities"])
             })
 
-        chunk_results = []
-        for i in range(len(resume_chunks)):
-            top_indices = np.argsort(sim_matrix[i, :])[-3:][::-1]
-            chunk_results.append({
-                "chunk": resume_chunks[i],
-                "top_relevant_requirements": [
-                    {"requirement": job_requirements[j], "similarity": float(sim_matrix[i, j])}
-                    for j in top_indices
-                ]
-            })
+        # 按平均相似度降序排列
+        requirement_results.sort(key=lambda x: -x["avg_similarity"])
+
+        # 加权计算整体匹配度
+        max_similarities = np.max(sim_matrix, axis=0)
+        gap_score = float(1 - np.average(max_similarities))
 
         return {
-            "by_requirement": requirement_results,
-            "by_chunk": chunk_results,
-            "gap_score": float(1 - np.mean(np.max(sim_matrix, axis=0)))
+            "requirements_analysis": requirement_results,
+            "gap_score": gap_score,
+            "match_percentage": (1 - gap_score) * 100
         }
 
     def format_report(self, analysis_result, job_title):
         """生成可读性报告"""
         report = [
             f"=== {job_title} RGA分析报告 ===",
-            f"整体匹配度: {(1 - analysis_result['gap_score']) * 100:.1f}%",
-            "\n【岗位要求匹配】"
+            f"整体匹配度: {analysis_result['match_percentage']:.1f}%",
+            "\n【最相关岗位要求】"
         ]
-        for req in analysis_result['by_requirement']:
-            report.append(f"\n► {req['requirement']}")
-            for match in req["top_matches"]:
-                report.append(f"  ✓ {match['chunk'][:80]}... ({match['similarity']:.0%})")
 
-        report.append("\n【简历优势模块】")
-        for chunk in analysis_result['by_chunk']:
-            if chunk['top_relevant_requirements'][0]['similarity'] > 0.7:
-                report.append(f"\n■ {chunk['chunk'][:80]}...")
-                for req in chunk['top_relevant_requirements']:
-                    report.append(f"  ▸ 匹配: {req['requirement']} ({req['similarity']:.0%})")
+        for req in analysis_result['requirements_analysis'][:5]:  # 只展示前5个最相关要求
+            report.append(f"\n► {req['requirement']} (平均匹配度: {req['avg_similarity']:.0%})")
+            for match in req["matches"]:
+                excerpt = match['chunk'][:100] + '...' if len(match['chunk']) > 100 else match['chunk']
+                report.append(f"  ✓ {excerpt} ({match['similarity']:.0%})")
 
         return '\n'.join(report)
 
+
 class JobApplicationHelper:
-    """
-    一个处理生成求职信的助手类。
-    包含两种方式：本地生成和远程生成。
-    """
+    """改进版求职助手（解决编码问题）"""
 
-    def __init__(self, use_local=True, local_url="http://127.0.0.1:11434/api/chat", model="deepseek-r1:1.5b"):
-        """
-        初始化生成求职信助手。
-
-        参数:
-            use_local (bool): 是否使用本地生成求职信。默认为True，表示使用本地。
-            local_url (str): 本地生成请求的URL，默认为本地服务器的URL。
-            model (str): 使用的模型，默认为"deepseek-r1:1.5b"。
-        """
+    def __init__(self, use_local=True, local_url="http://127.0.0.1:11434/api/generate", model="deepseek-r1:1.5b"):
         self.use_local = use_local
         self.local_url = local_url
         self.model = model
 
-    def generate_letter(self, prompt):
-        """
-        根据提供的prompt生成求职信。
-
-        参数:
-            prompt (str): 求职信的生成Prompt。
-
-        返回:
-            str: 生成的求职信。
-        """
-        if self.use_local:
-            return self.generate_letter_local(prompt)
-        else:
-            return self.generate_letter_remote(prompt)
-
-    def generate_letter_local(self, prompt):
-        """
-        向本地AI发送Prompt生成求职信。
-
-        参数:
-            prompt (str): 求职信的生成Prompt
-
-        返回:
-            str: 生成的求职信
-        """
-        headers = {
-            "Content-Type": "application/json"
-        }
-
-        data = {
-            "model": self.model,
-            "prompt": prompt,
-            "stream": False
-        }
-
+    def generate_letter(self, prompt, temperature=0.7):
         try:
-            response = requests.post(self.local_url, headers=headers, json=data)
-            response_json = response.json()
-            content = response_json.get("message", {}).get("content", "")
-
-            # 清理AI的回复
-            content = " ".join(content.split())
-            return content
-
+            if self.use_local:
+                return self._generate_local(prompt, temperature)
+            return self._generate_remote(prompt, temperature)
         except Exception as e:
-            print(f"生成求职信时发生错误: {e}")
-            return "生成求职信时出错"
+            print(f"生成失败: {str(e)}")
+            return "求职信生成失败，请稍后重试"
 
-    def generate_letter_remote(self, prompt):
-        """
-        向远程AI发送Prompt生成求职信。
-
-        参数:
-            prompt (str): 求职信的生成Prompt
-
-        返回:
-            str: 生成的求职信
-        """
+    def _generate_local(self, prompt, temperature):
+        """专用适配版本（当API响应格式固定时）"""
         try:
-            # 调用远程API生成求职信
-            response = client.chat.completions.create(
-                model="deepseek-chat",  # 使用深度模型生成对话
-                messages=[
-                    {"role": "system", "content": "你是一位专业的求职助手，能够根据简历和工作描述生成高质量的求职信。"},
-                    {"role": "user", "content": prompt},  # 将Prompt作为用户消息发送
-                ],
-                stream=False  # 不开启流式处理
+            response = requests.post(
+                self.local_url,
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "options": {"temperature": temperature},
+                    "stream": False
+                },
+                headers={"Content-Type": "application/json"},
+                timeout=15
             )
+            response.raise_for_status()
+            return self._clean_response(response.json()["response"])  # 直接取response字段
 
-            # 提取AI生成的求职信
-            letter = response.choices[0].message.content
-
-            # 清理AI的回复：去除换行符，避免分段问题
-            letter = letter.replace('\n', ' ').strip()
-
-            return letter
-
+        except KeyError:
+            raise RuntimeError("API响应格式异常，缺少'response'字段")
+        except requests.exceptions.Timeout:
+            raise RuntimeError("请求超时，请检查API服务是否正常运行")
         except Exception as e:
-            print(f"生成求职信时发生错误: {e}")
-            return "生成求职信时出错"
+            raise RuntimeError(f"生成失败: {str(e)}")
+
+    def _generate_remote(self, prompt, temperature):
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            prompt=prompt,
+            temperature=temperature,
+            stream=False
+        )
+        return self._clean_response(response.choices[0].message.content)
+
+    def _clean_response(self, text):
+        """处理特殊字符编码"""
+        return text.encode('utf-8', errors='ignore').decode('utf-8')
+
 
 def generate_prompt_from_rga(job_description, top_k=3):
-    """
-    根据RGA分析结果生成求职信的Prompt，并包含Top-K筛选
-    """
+    """改进版Prompt生成（处理特殊字符）"""
     rga = RGAnalyzer()
-    resume_text = rga.load_resumes()
-    # 进行RGA分析
-    resume_chunks = rga.chunk_text(resume_text)
-    job_requirements = job_description.split("\n")
-    resume_emb = rga.encode_texts(resume_chunks)
-    job_emb = rga.encode_texts(job_requirements)
-    sim_matrix = rga.calculate_similarity(resume_emb, job_emb)
+    try:
+        resume_text = rga.load_resumes()
+        if not resume_text:
+            raise ValueError("简历内容为空，请检查PDF文件")
 
-    # 生成分析报告
-    analysis_result = rga.generate_analysis_report(sim_matrix, resume_chunks, job_requirements)
+        resume_chunks = rga.chunk_text(resume_text)
+        job_requirements = [req.strip() for req in job_description.split("\n") if req.strip()]
 
-    # 生成求职信的Prompt
-    prompt = f"""
-    你是一位求职助手，请根据以下信息为求职者写一封求职信：
+        if not job_requirements:
+            raise ValueError("无效的岗位描述")
 
-    - 岗位要求：{job_description}
-    - 简历优势：根据RGA分析，简历在以下岗位要求上有显著优势：
+        resume_emb = rga.encode_texts(resume_chunks)
+        job_emb = rga.encode_texts(job_requirements)
+        sim_matrix = rga.calculate_similarity(resume_emb, job_emb)
+
+        analysis_result = rga.generate_analysis_report(sim_matrix, resume_chunks, job_requirements)
+
+        # 使用ASCII字符替代Unicode符号
+        prompt = [
+            "请根据以下匹配分析生成求职内容，要求：",
+            "1. 专业简洁，不超过400字",
+            "2. 突出显示最相关的3项能力",
+            "3. 包含具体成就或经验",
+            "4. 直接使用第一人称我"
+            "\n[岗位要求]",
+            job_description,
+            "\n[简历匹配分析]"
+        ]
+
+        for req in analysis_result["requirements_analysis"][:top_k]:
+            prompt.append(f"\n- 要求: {req['requirement']} (匹配度: {req['avg_similarity']:.0%})")
+            for match in req["matches"]:
+                excerpt = match["chunk"][:150] + "..." if len(match["chunk"]) > 150 else match["chunk"]
+                prompt.append(f"  * 相关经历: {excerpt}")
+
+        prompt.append("\n请生成具有专业性的话，直接输出内容不要额外说明。")
+        return "\n".join(prompt)
+
+    except Exception as e:
+        print(f"生成Prompt出错: {str(e)}")
+        raise
+
+
+if __name__ == "__main__":
+    print(2)
+    # 示例用法
+    job_desc = """
+    我们正在寻找一名Python开发工程师，要求：
+    - 3年以上Python开发经验
+    - 熟悉Django/Flask框架
+    - 有云计算(AWS/Azure)经验者优先
+    - 良好的算法和数据结构基础
     """
+    print(1)
+    try:
 
-    # 使用 Top-K 策略进行筛选
-    for req in analysis_result["by_requirement"]:
-        prompt += f"\n  - 岗位要求：{req['requirement']}"
-        top_matches = req["top_matches"][:top_k]
-        for match in top_matches:
-            prompt += f"\n    - 简历中相关部分：{match['chunk'][:100]}... (相似度: {match['similarity'] * 100:.2f}%)"
+        prompt = generate_prompt_from_rga(job_desc)
+        print("正在生成生成prompt成功...")
+        # print(prompt)
+        helper = JobApplicationHelper()
+        cover_letter = helper.generate_letter(prompt)
 
-    prompt += "\n请根据这些信息，撰写一封简洁的、专业的求职信，突出求职者的优势。"
+        print("\n生成的求职信：")
+        print(cover_letter)
 
-    return prompt
+        # 可选：保存分析报告
+        # rga = RGAnalyzer()
+        # resume_text = rga.load_resumes()
+        # resume_chunks = rga.chunk_text(resume_text)
+        # job_reqs = [req.strip() for req in job_desc.split("\n") if req.strip()]
+        # emb_resume = rga.encode_texts(resume_chunks)
+        # emb_job = rga.encode_texts(job_reqs)
+        # sim_matrix = rga.calculate_similarity(emb_resume, emb_job)
+        # report = rga.generate_analysis_report(sim_matrix, resume_chunks, job_reqs)
+        #
+        # with open("analysis_report.txt", "w") as f:
+        #     f.write(rga.format_report(report, "Python开发工程师"))
 
-
-
-
-
-
-
-
-if __name__ =="__main__":
-    job_description = """
-    我们正在寻找一名软件开发人员，要求具备丰富的 Python 或 Java 开发经验。
-    该职位需要独立设计和开发系统，并能够与团队成员协作完成项目。
-    """
-    prompt = generate_prompt_from_rga(job_description)
-    job_assn = JobApplicationHelper()
-    res = job_assn.generate_letter(prompt)
+    except Exception as e:
+        print(f"程序出错: {str(e)}")
